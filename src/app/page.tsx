@@ -196,6 +196,20 @@ export default function Home() {
           </button>
         </form>
       </div>
+      {/* Footer */}
+      <footer className="w-full text-center mt-4">
+        <p className="text-gray-600">
+          Developed by{" "}
+          <a
+            href="https://www.linkedin.com/in/md-ataullah"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:underline"
+          >
+            Md Ataullah
+          </a>
+        </p>
+      </footer>
       {/* Additional CSS to hide scrollbar */}
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar {
