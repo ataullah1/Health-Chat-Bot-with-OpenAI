@@ -1,101 +1,207 @@
-import Image from "next/image";
+"use client";
+
+import React, { useState, useRef, useEffect } from "react";
+import { FaUser, FaRobot, FaArrowDown } from "react-icons/fa";
+
+type Message = {
+  sender: "user" | "ai";
+  text: string;
+};
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [input, setInput] = useState("");
+  const [chatHistory, setChatHistory] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [defaultQuestionVisible, setDefaultQuestionVisible] = useState(true);
+  const [showScrollDown, setShowScrollDown] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // Ref for the chat container
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Default questions to display on the UI
+  const defaultQuestions = [
+    "Tell me something about your chamber.",
+    "When did you open your chamber?",
+    "Where is your chamber?",
+  ];
+
+  // Function to scroll to the bottom of the chat container smoothly.
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  // Scroll to bottom on chatHistory change if user is already near the bottom.
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        chatContainerRef.current;
+      const nearBottom = scrollTop + clientHeight >= scrollHeight - 50;
+      if (nearBottom) {
+        scrollToBottom();
+      }
+    }
+  }, [chatHistory]);
+
+  // Listen for scroll events to decide whether to show the down-arrow.
+  const handleScroll = () => {
+    if (chatContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        chatContainerRef.current;
+      if (scrollTop + clientHeight < scrollHeight - 50) {
+        setShowScrollDown(true);
+      } else {
+        setShowScrollDown(false);
+      }
+    }
+  };
+
+  const handleSubmit = async (
+    e: React.FormEvent,
+    questionFromButton?: string
+  ) => {
+    e.preventDefault();
+    const question = questionFromButton || input;
+    if (!question.trim()) return;
+
+    const userMessage: Message = { sender: "user", text: question };
+    setChatHistory((prev) => [...prev, userMessage]);
+    if (!questionFromButton) setInput("");
+    setLoading(true);
+
+    // Hide default questions after the first question is asked
+    if (defaultQuestionVisible) {
+      setDefaultQuestionVisible(false);
+    }
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: question }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setChatHistory((prev) => [
+          ...prev,
+          { sender: "ai", text: "Error: " + data.error },
+        ]);
+      } else {
+        const aiMessage: Message = { sender: "ai", text: data.message || "" };
+        setChatHistory((prev) => [...prev, aiMessage]);
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      setChatHistory((prev) => [
+        ...prev,
+        { sender: "ai", text: "An unexpected error occurred." },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="w-full px-3 min-h-screen flex flex-col items-center justify-center bg-gray-100">
+      <div className="w-full lg:min-w-96 lg:max-w-xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <h1 className="text-2xl font-bold text-center text-gray-800 pb-4">
+          Medical Help
+        </h1>
+
+        {/* Chat Container */}
+        <div
+          ref={chatContainerRef}
+          onScroll={handleScroll}
+          className="relative border border-gray-300 p-4 h-[450px] overflow-y-auto mb-4 bg-gray-50 rounded-md scrollbar-hide"
+          style={{
+            msOverflowStyle: "none",
+            scrollbarWidth: "none",
+          }}
+        >
+          {/* Default Questions Container */}
+          {defaultQuestionVisible && (
+            <div className="mb-4 flex flex-col gap-2">
+              {defaultQuestions.map((q, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => handleSubmit(e, q)}
+                  className="w-full border border-blue-500 text-blue-500 rounded-md px-4 py-2 hover:bg-blue-50 transition shadow-md"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {chatHistory.map((msg, index) => (
+            <div
+              key={index}
+              className={`mb-2 flex ${
+                msg.sender === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
+              {msg.sender === "user" ? (
+                <FaUser className="text-blue-600 mr-2" />
+              ) : (
+                <FaRobot className="text-green-600 mr-2" />
+              )}
+              <div
+                className={`p-2 rounded-lg ${
+                  msg.sender === "user"
+                    ? "bg-blue-100 text-blue-800"
+                    : "bg-green-100 text-green-800"
+                } transition-all duration-300`}
+              >
+                <strong>{msg.sender === "user" ? "You" : "AI"}:</strong>{" "}
+                {msg.text}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="text-center italic text-gray-500">
+              AI is typing...
+            </div>
+          )}
+          {/* Down Arrow Icon */}
+          {showScrollDown && (
+            <button
+              onClick={scrollToBottom}
+              className="absolute bottom-2 right-2 bg-white p-1 rounded-full shadow-md hover:bg-gray-100 transition"
+              title="Scroll to latest"
+            >
+              <FaArrowDown className="text-gray-600" />
+            </button>
+          )}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        {/* Input Form */}
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Ask your question..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            disabled={loading}
+            className="flex-1 border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-blue-500 text-white rounded-md px-4 py-2 hover:bg-blue-600 transition"
+          >
+            Send
+          </button>
+        </form>
+      </div>
+      {/* Additional CSS to hide scrollbar */}
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }
