@@ -1,6 +1,6 @@
 # Medical Help Chat Application
 
-![Screenshot](screenshot.png)
+![Screenshot](./public/screenshot.png)
 
 ## Overview
 
@@ -30,7 +30,7 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/medical-help-chat.git
+   git clone https://github.com/ataullah1/Health-Chat-Bot-with-OpenAI.git
    cd medical-help-chat
    ```
 
